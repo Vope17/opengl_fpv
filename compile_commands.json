@@ -1,0 +1,17 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/g++",
+      "-Iinclude",
+      "-Wall",
+      "-std=c++11",
+      "-c",
+      "-o",
+      "src/main.o",
+      "src/main.cpp"
+    ],
+    "directory": "/home/bcl/work/opengl_minecraft",
+    "file": "/home/bcl/work/opengl_minecraft/src/main.cpp",
+    "output": "/home/bcl/work/opengl_minecraft/src/main.o"
+  }
+]
