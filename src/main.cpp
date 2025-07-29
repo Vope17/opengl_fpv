@@ -82,7 +82,7 @@ static GLFWwindow* windowInit()
 
 static void clearScreen()
 {
-    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
 }
@@ -95,6 +95,9 @@ int main()
     // ------------------------------------
     // load shader program
     Shader ourShader("shaders/texture.vert", "shaders/texture.frag");
+    Shader lightingShader("shaders/light.vert", "shaders/light.frag");
+    Shader lightCubeShader("shaders/lightSource.vert",
+                           "shaders/lightSource.frag");
 
     // set up texture
     // ------------------------------------------------------------------
@@ -125,15 +128,10 @@ int main()
                           (void*)0);
     glEnableVertexAttribArray(0);
 
-    // color attributes
-    // glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
-    //                       (void*)(3 * sizeof(float)));
-    // glEnableVertexAttribArray(1);
-
     // texture attributes
-    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
                           (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(2);
+    glEnableVertexAttribArray(1);
 
     // note that this is allowed, the call to glVertexAttribPointer registered
     // VBO as the vertex attribute's bound vertex buffer object so afterwards we
@@ -150,18 +148,57 @@ int main()
     // VBOs) when it's not directly necessary.
     glBindVertexArray(0);
 
+    // lighting object
+    unsigned int lightingVAO, lightingVBO;
+    glGenVertexArrays(1, &lightingVAO);
+    glBindVertexArray(lightingVAO);
+    // we only need to bind to the VBO, the container's VBO's data already
+    // contains the data.
+    glGenBuffers(1, &lightingVBO);
+    glBindBuffer(GL_ARRAY_BUFFER, lightingVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(lightCube_vertices),
+                 lightCube_vertices, GL_STATIC_DRAW);
+    // set the vertex attribute
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
+                          (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
+                          (void*)(3 * sizeof(float)));
+    glEnableVertexAttribArray(1);
+
+    glBindVertexArray(0);
+
+    // second, configure the light's VAO (VBO stays the same; the vertices are
+    // the same for the light object which is also a 3D cube)
+
+    // the source of light
+    unsigned int lightCubeVAO;
+    glGenVertexArrays(1, &lightCubeVAO);
+    glBindVertexArray(lightCubeVAO);
+
+    // we only need to bind to the VBO (to link it with glVertexAttribPointer),
+    // no need to fill it; the VBO's data already contains all we need (it's
+    // already bound, but we do it again for educational purposes)
+    glBindBuffer(GL_ARRAY_BUFFER, lightingVBO);
+
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
+                          (void*)0);
+    glEnableVertexAttribArray(0);
+
+    glBindVertexArray(0);
     // uncomment this call to draw in wireframe polygons.
     // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    // render loop
-    // -----------
-    float opacity = 0.0f;
 
-    // std::cout << texture1.ID << ',' << texture2.ID << std::endl;
     texture1.active2D();
     texture2.active2D();
 
     Map map(MAP_WIDTH, MAP_HEIGHT);
 
+    // Learing Light OpenGL
+
+    // render loop
+    // -----------
     while (!glfwWindowShouldClose(window))
     {
         float currentFrame = glfwGetTime();
@@ -172,50 +209,43 @@ int main()
         // player.camera.Position.y
         //           << "," << player.camera.Position.z << std::endl;
 
-        player.Update_yPos(deltaTime, map.heightMap);
-        // input
-        // -----
+        //  input
+        //  -----
         processInput(window);
 
         // render
         // ------
         clearScreen();
 
-        glBindVertexArray(VAO);
-
         // seeing as we only have a single VAO
         // there's no need to bind it every time, but we'll do
         // so to keep things a bit more organized
         // glDrawArrays(GL_TRIANGLES, 0, 15);
 
+        player.Update_yPos(deltaTime, map.heightMap);
+        glBindVertexArray(VAO);
         ourShader.use();
         ourShader.setInt("texture1", texture1.ID); // or with shader class
         ourShader.setInt("texture2", texture2.ID); // or with shader class
-        ourShader.setFloat("opacity", opacity);
+
+        // be sure to activate shader when setting uniforms/drawing objects
 
         glm::mat4 view;
         view = player.camera.GetViewMatrix();
-        // note that we're translating the scene in the reverse direction of
-        // where we want to move
+        //// note that we're translating the scene in the reverse direction of
+        //// where we want to move
         view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
+        ourShader.setMat4("view", view);
 
         glm::mat4 projection = glm::perspective(
             glm::radians(player.camera.Zoom),
             (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-
         ourShader.setMat4("projection", projection);
-        ourShader.setMat4("view", view);
+
         for (unsigned int i = 0; i < map.map.size(); ++i)
         {
             // float angle = 20.0f * i;
             glm::mat4 model = glm::mat4(1.0f);
-            // if (i % 3 == 0)
-            //{
-            //     model = glm::rotate(model,
-            //                         (float)glfwGetTime() *
-            //                         glm::radians(angle),
-            //                         glm::vec3(0.5f, 1.0f, 0.0f));
-            // }
 
             ourShader.setMat4("model", model);
             // trans = glm::scale(trans, glm::vec3(0.5, 0.5, 0.5));
@@ -225,9 +255,71 @@ int main()
             ourShader.setMat4("trans", trans);
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
-        // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        // be sure to activate shader when setting uniforms/drawing objects
+        lightingShader.use();
+        lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
+        lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
 
-        //  glBindVertexArray(0); // no need to unbind it every time
+        // view/projection transformations
+        projection = glm::perspective(glm::radians(player.camera.Zoom),
+                                      (float)SCR_WIDTH / (float)SCR_HEIGHT,
+                                      0.1f, 100.0f);
+        view = player.camera.GetViewMatrix();
+        lightingShader.setMat4("projection", projection);
+        lightingShader.setMat4("view", view);
+
+        glm::vec3 objectPos(15.0f, 10.0f, 22.0f);
+        // world transformation
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, objectPos);
+        model = glm::scale(model, glm::vec3(5.0f)); // a smaller cube
+        lightingShader.setMat4("model", model);
+
+        lightingShader.setVec3("viewPos", player.camera.Position);
+
+        glm::vec3 lightPos(10.0f, 10.0f, 20.0f);
+        lightingShader.setVec3("lightPos", lightPos);
+        // also draw the lamp object
+        lightCubeShader.use();
+        lightCubeShader.setMat4("projection", projection);
+        lightCubeShader.setMat4("view", view);
+        model = glm::mat4(1.0f);
+        // model = glm::translate(model, lightPos);
+        // model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
+        // model = glm::rotate(model, (float)glfwGetTime() *
+        // glm::radians(80.0f),
+        //                     glm::vec3(0.5f, 1.0f, 0.0f));
+        //  步驟 1：將 A 物體平移到相對於 B 物體的位置（即將 B
+        //  物體作為臨時原點）
+        model = glm::translate(model, objectPos);
+
+        //// 步驟 2：應用旋轉操作（例如圍繞 y 軸旋轉，角度隨時間變化）
+        float angle = (float)glfwGetTime() * glm::radians(90.0f); //
+        //     旋轉角度，隨時間變化
+        model = glm::rotate(model, angle, glm::vec3(0.0f, 1.0f, 0.0f));
+
+        // 步驟 3：將 A 物體平移回來，恢復到世界坐標系中的正確位置
+        model = glm::translate(model, lightPos);
+
+        // 步驟 4：如果 A 物體有自己的初始位置或偏移，應用它
+        model = glm::translate(model,
+                               lightPos - objectPos); // 初始位置相對於 B
+        //                       的偏移
+
+        lightCubeShader.setMat4("model", model);
+        glBindVertexArray(lightCubeVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        lightingShader.use();
+        glm::vec3 currentLightPos =
+            glm::vec3(model[3][0], model[3][1], model[3][2]);
+        lightingShader.setVec3("lightPos", currentLightPos);
+
+        // render the cube
+        glBindVertexArray(lightingVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
+
+        // glBindVertexArray(0); // no need to unbind it every time
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse
         // moved etc.)
@@ -239,6 +331,8 @@ int main()
     // optional: de-allocate all resources once they've outlived their purpose:
     // ------------------------------------------------------------------------
     glDeleteVertexArrays(1, &VAO);
+    glDeleteVertexArrays(1, &lightingVAO);
+    glDeleteVertexArrays(1, &lightCubeVAO);
     glDeleteBuffers(1, &VBO);
     glDeleteBuffers(1, &EBO);
     // glDeleteProgram(shaderProgram_orange);

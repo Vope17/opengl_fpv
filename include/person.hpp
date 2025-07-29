@@ -5,7 +5,7 @@
 #include "glm/glm.hpp"
 #include <glm/gtx/compatibility.hpp>
 
-#define DEBUG
+// #define DEBUG
 class Person
 {
   public:
