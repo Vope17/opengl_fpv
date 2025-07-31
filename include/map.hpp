@@ -1,8 +1,16 @@
 #pragma once
 
+#include <glad/glad.h>
+#include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
 #include "block.hpp"
-#include <vector>
 #include "FastNoiseLite.h"
+#include "shader.hpp"
+
+#include <vector>
 class Map
 {
   public:
@@ -43,5 +51,19 @@ class Map
             }
         }
         return map;
+    }
+
+    void createFloor(const Shader& floorShader)
+    {
+        for (unsigned int i = 0; i < map.size(); ++i)
+        {
+            glm::mat4 model = glm::mat4(1.0f);
+
+            floorShader.setMat4("model", model);
+            glm::mat4 trans = glm::mat4(1.0f);
+            trans = glm::translate(trans, map[i].pos);
+            floorShader.setMat4("trans", trans);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
     }
 };

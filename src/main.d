@@ -80,4 +80,4 @@ src/main.o: src/main.cpp include/glad/glad.h include/KHR/khrplatform.h \
  include/block.hpp include/glm/gtx/compatibility.hpp \
  include/glm/gtx/compatibility.inl include/shader.hpp include/texture.hpp \
  include/stb_image.h include/map.hpp include/FastNoiseLite.h \
- include/vertice.hpp
+ include/shader.hpp include/vertice.hpp

@@ -38,7 +38,7 @@ float fov = 45.0f;
 // timing
 float deltaTime = 0.0f; // Time between current frame and last frame
 float lastFrame = 0.0f; // Time of last frame
-                        //
+
 static GLFWwindow* windowInit()
 {
 
@@ -94,10 +94,10 @@ int main()
         return -1;
     // ------------------------------------
     // load shader program
-    Shader ourShader("shaders/texture.vert", "shaders/texture.frag");
+    Shader floorShader("shaders/texture.vert", "shaders/texture.frag");
     Shader lightingShader("shaders/light.vert", "shaders/light.frag");
-    Shader lightCubeShader("shaders/lightSource.vert",
-                           "shaders/lightSource.frag");
+    Shader lightSourceShader("shaders/lightSource.vert",
+                             "shaders/lightSource.frag");
 
     // set up texture
     // ------------------------------------------------------------------
@@ -195,8 +195,15 @@ int main()
 
     Map map(MAP_WIDTH, MAP_HEIGHT);
 
-    // Learing Light OpenGL
+    // Setup view and projection space
+    glm::mat4 view;
+    glm::mat4 projection =
+        glm::perspective(glm::radians(player.camera.Zoom),
+                         (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
 
+    // Setup object and light source position
+    glm::vec3 objectPos(15.0f, 10.0f, 22.0f);
+    glm::vec3 lightPos(10.0f, 10.0f, 20.0f);
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window))
@@ -224,109 +231,85 @@ int main()
 
         player.Update_yPos(deltaTime, map.heightMap);
         glBindVertexArray(VAO);
-        ourShader.use();
-        ourShader.setInt("texture1", texture1.ID); // or with shader class
-        ourShader.setInt("texture2", texture2.ID); // or with shader class
-
-        // be sure to activate shader when setting uniforms/drawing objects
-
-        glm::mat4 view;
-        view = player.camera.GetViewMatrix();
-        //// note that we're translating the scene in the reverse direction of
-        //// where we want to move
-        view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-        ourShader.setMat4("view", view);
-
-        glm::mat4 projection = glm::perspective(
-            glm::radians(player.camera.Zoom),
-            (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-        ourShader.setMat4("projection", projection);
-
-        for (unsigned int i = 0; i < map.map.size(); ++i)
-        {
-            // float angle = 20.0f * i;
-            glm::mat4 model = glm::mat4(1.0f);
-
-            ourShader.setMat4("model", model);
-            // trans = glm::scale(trans, glm::vec3(0.5, 0.5, 0.5));
-
-            glm::mat4 trans = glm::mat4(1.0f);
-            trans = glm::translate(trans, map.map[i].pos);
-            ourShader.setMat4("trans", trans);
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
-        // be sure to activate shader when setting uniforms/drawing objects
-        lightingShader.use();
-        lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
-        lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
 
         // view/projection transformations
+        view = glm::translate(player.camera.GetViewMatrix(),
+                              glm::vec3(0.0f, 0.0f, -3.0f));
         projection = glm::perspective(glm::radians(player.camera.Zoom),
                                       (float)SCR_WIDTH / (float)SCR_HEIGHT,
                                       0.1f, 100.0f);
-        view = player.camera.GetViewMatrix();
-        lightingShader.setMat4("projection", projection);
-        lightingShader.setMat4("view", view);
 
-        glm::vec3 objectPos(15.0f, 10.0f, 22.0f);
-        // world transformation
+        // floor shader
+        floorShader.use();
+        floorShader.setInt("texture1", texture1.ID); // or with shader class
+        floorShader.setInt("texture2", texture2.ID); // or with shader class
+        floorShader.setMat4("view", view);
+        floorShader.setMat4("projection", projection);
+        map.createFloor(floorShader);
+
+        // lightSource shader
         glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, objectPos);
-        model = glm::scale(model, glm::vec3(5.0f)); // a smaller cube
-        lightingShader.setMat4("model", model);
-
-        lightingShader.setVec3("viewPos", player.camera.Position);
-
-        glm::vec3 lightPos(10.0f, 10.0f, 20.0f);
-        lightingShader.setVec3("lightPos", lightPos);
-        // also draw the lamp object
-        lightCubeShader.use();
-        lightCubeShader.setMat4("projection", projection);
-        lightCubeShader.setMat4("view", view);
+        lightSourceShader.use();
         model = glm::mat4(1.0f);
-        // model = glm::translate(model, lightPos);
-        // model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
-        // model = glm::rotate(model, (float)glfwGetTime() *
-        // glm::radians(80.0f),
-        //                     glm::vec3(0.5f, 1.0f, 0.0f));
-        //  步驟 1：將 A 物體平移到相對於 B 物體的位置（即將 B
-        //  物體作為臨時原點）
-        model = glm::translate(model, objectPos);
-
-        //// 步驟 2：應用旋轉操作（例如圍繞 y 軸旋轉，角度隨時間變化）
-        float angle = (float)glfwGetTime() * glm::radians(90.0f); //
-        //     旋轉角度，隨時間變化
-        model = glm::rotate(model, angle, glm::vec3(0.0f, 1.0f, 0.0f));
-
-        // 步驟 3：將 A 物體平移回來，恢復到世界坐標系中的正確位置
         model = glm::translate(model, lightPos);
 
-        // 步驟 4：如果 A 物體有自己的初始位置或偏移，應用它
-        model = glm::translate(model,
-                               lightPos - objectPos); // 初始位置相對於 B
-        //                       的偏移
+        lightSourceShader.setMat4("projection", projection);
+        lightSourceShader.setMat4("view", view);
+        lightSourceShader.setMat4("model", model);
 
-        lightCubeShader.setMat4("model", model);
         glBindVertexArray(lightCubeVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
+        // lighting shader(the object which is spoted by light source)
         lightingShader.use();
-        glm::vec3 currentLightPos =
-            glm::vec3(model[3][0], model[3][1], model[3][2]);
-        lightingShader.setVec3("lightPos", currentLightPos);
+        glm::vec3 lightColor;
+        lightColor.x = sin(glfwGetTime() * 2.0f);
+        lightColor.y = sin(glfwGetTime() * 0.7f);
+        lightColor.z = sin(glfwGetTime() * 1.3f);
 
-        // render the cube
+        glm::vec3 diffuseColor = lightColor * glm::vec3(0.5f);
+        glm::vec3 ambientColor = diffuseColor * glm::vec3(0.2f);
+
+        lightingShader.setVec3("light.ambient", ambientColor);
+        lightingShader.setVec3("light.diffuse", diffuseColor);
+        lightingShader.setVec3("light.specular", 1.0f, 1.0f, 1.0f);
+
+        lightingShader.setVec3("material.ambient", ambientColor);
+        lightingShader.setVec3("material.diffuse", diffuseColor);
+        lightingShader.setVec3("material.specular", 0.5f, 0.5f, 0.5f);
+        lightingShader.setFloat("material.shininess", 32.0f);
+
+        lightingShader.setMat4("projection", projection);
+        lightingShader.setMat4("view", view);
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, objectPos);
+        model = glm::scale(model, glm::vec3(2.0f)); // a smaller cube
+        lightingShader.setMat4("model", model);
+        lightingShader.setVec3("viewPos", player.camera.Position);
+        lightingShader.setVec3("lightPos", lightPos);
+
         glBindVertexArray(lightingVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
-        // glBindVertexArray(0); // no need to unbind it every time
-
-        // glfw: swap buffers and poll IO events (keys pressed/released, mouse
-        // moved etc.)
+        // glfw: swap buffers and poll IO events (keys
+        // pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
+    // 步驟 1：將 A 物體平移到相對於 B 物體的位置（即將 B
+    // 物體作為臨時原點）
+    // model = glm::translate(model, objectPos);
+    // // 步驟 2：應用旋轉操作（例如圍繞 y
+    // // 軸旋轉，角度隨時間變化）旋轉角度，隨時間變化
+    // float angle = (float)glfwGetTime() * glm::radians(90.0f);
+    // model = glm::rotate(model, angle, glm::vec3(0.0f, 1.0f, 0.0f));
+    // // 步驟 3：將 A 物體平移回來，恢復到世界坐標系中的正確位置
+    // model = glm::translate(model, lightPos);
+    // // 步驟 4：如果 A 物體有自己的初始位置或偏移，應用它
+    // model = glm::translate(model, lightPos - objectPos); //
+    // 初始位置相對於 B 的偏移
 
     // optional: de-allocate all resources once they've outlived their purpose:
     // ------------------------------------------------------------------------
