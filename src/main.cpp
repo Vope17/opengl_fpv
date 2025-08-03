@@ -103,6 +103,10 @@ int main()
     // ------------------------------------------------------------------
     Texture texture1("media/container.jpg");
     Texture texture2("media/awesomeface.png");
+    Texture texture3("media/container2.png");
+    Texture texture3_specular("media/container2_specular.png");
+    Texture texture3_specular_color("media/container2_specular_color.png");
+    Texture texture4_emission("media/matrix.jpg");
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
@@ -124,13 +128,13 @@ int main()
     //              GL_STATIC_DRAW);
 
     // position attributes
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
                           (void*)0);
     glEnableVertexAttribArray(0);
 
     // texture attributes
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
-                          (void*)(3 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+                          (void*)(6 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
     // note that this is allowed, the call to glVertexAttribPointer registered
@@ -156,16 +160,22 @@ int main()
     // contains the data.
     glGenBuffers(1, &lightingVBO);
     glBindBuffer(GL_ARRAY_BUFFER, lightingVBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(lightCube_vertices),
-                 lightCube_vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(cube_vertices), cube_vertices,
+                 GL_STATIC_DRAW);
     // set the vertex attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
                           (void*)0);
     glEnableVertexAttribArray(0);
 
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
+    // normal vector attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
                           (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
+
+    // texture attribute
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+                          (void*)(6 * sizeof(float)));
+    glEnableVertexAttribArray(2);
 
     glBindVertexArray(0);
 
@@ -182,7 +192,7 @@ int main()
     // already bound, but we do it again for educational purposes)
     glBindBuffer(GL_ARRAY_BUFFER, lightingVBO);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
                           (void*)0);
     glEnableVertexAttribArray(0);
 
@@ -192,6 +202,14 @@ int main()
 
     texture1.active2D();
     texture2.active2D();
+    texture3.active2D();
+    texture3_specular.active2D();
+    // texture3_specular_color.active2D();
+    texture4_emission.active2D();
+    lightingShader.use();
+    lightingShader.setInt("material.diffuse", texture3.ID);
+    lightingShader.setInt("material.specular", texture3_specular.ID);
+    lightingShader.setInt("material.emission", texture4_emission.ID);
 
     Map map(MAP_WIDTH, MAP_HEIGHT);
 
@@ -262,10 +280,10 @@ int main()
 
         // lighting shader(the object which is spoted by light source)
         lightingShader.use();
-        glm::vec3 lightColor;
-        lightColor.x = sin(glfwGetTime() * 2.0f);
-        lightColor.y = sin(glfwGetTime() * 0.7f);
-        lightColor.z = sin(glfwGetTime() * 1.3f);
+        glm::vec3 lightColor(1.0f);
+        // lightColor.x = sin(glfwGetTime() * 2.0f);
+        // lightColor.y = sin(glfwGetTime() * 0.7f);
+        // lightColor.z = sin(glfwGetTime() * 1.3f);
 
         glm::vec3 diffuseColor = lightColor * glm::vec3(0.5f);
         glm::vec3 ambientColor = diffuseColor * glm::vec3(0.2f);
@@ -274,9 +292,7 @@ int main()
         lightingShader.setVec3("light.diffuse", diffuseColor);
         lightingShader.setVec3("light.specular", 1.0f, 1.0f, 1.0f);
 
-        lightingShader.setVec3("material.ambient", ambientColor);
-        lightingShader.setVec3("material.diffuse", diffuseColor);
-        lightingShader.setVec3("material.specular", 0.5f, 0.5f, 0.5f);
+        // lightingShader.setVec3("material.ambient", ambientColor);
         lightingShader.setFloat("material.shininess", 32.0f);
 
         lightingShader.setMat4("projection", projection);
@@ -284,7 +300,7 @@ int main()
 
         model = glm::mat4(1.0f);
         model = glm::translate(model, objectPos);
-        model = glm::scale(model, glm::vec3(2.0f)); // a smaller cube
+        // model = glm::scale(model, glm::vec3(2.0f)); // a smaller cube
         lightingShader.setMat4("model", model);
         lightingShader.setVec3("viewPos", player.camera.Position);
         lightingShader.setVec3("lightPos", lightPos);
