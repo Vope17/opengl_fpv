@@ -16,6 +16,11 @@ struct Light
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
+
+    // for calculating intensity of light by different distance.
+    float constant;
+    float linear;
+    float quadratic;
 };
 
 in vec3 FragPos;
@@ -32,6 +37,10 @@ void main()
 {
     // ambient
     // vec3 ambient = light.ambient * material.ambient;
+
+    float distance = length(light.position - FragPos);
+    float attenuation = 1.0 / (light.constant + light.linear * distance +
+                light.quadratic * (distance * distance));
     vec3 ambient = light.ambient * texture(material.diffuse, TexCoords).rgb;
 
     // diffuse
@@ -48,6 +57,10 @@ void main()
     vec3 specular = light.specular * spec * texture(material.specular, TexCoords).rgb;
     // emission
     vec3 emission = texture(material.emission, TexCoords).rgb;
+
+    ambient *= attenuation;
+    diffuse *= attenuation;
+    specular *= attenuation;
 
     vec3 result = ambient + diffuse + specular + emission;
 
