@@ -107,6 +107,7 @@ int main()
     Texture texture3_specular("media/container2_specular.png");
     Texture texture3_specular_color("media/container2_specular_color.png");
     Texture texture4_emission("media/matrix.jpg");
+    Texture texture_grass("media/grass.jpg");
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
@@ -206,6 +207,7 @@ int main()
     texture3_specular.active2D();
     // texture3_specular_color.active2D();
     texture4_emission.active2D();
+    texture_grass.active2D();
     lightingShader.use();
     lightingShader.setInt("material.diffuse", texture3.ID);
     lightingShader.setInt("material.specular", texture3_specular.ID);
@@ -251,16 +253,16 @@ int main()
         glBindVertexArray(VAO);
 
         // view/projection transformations
-        view = glm::translate(player.camera.GetViewMatrix(),
-                              glm::vec3(0.0f, 0.0f, -3.0f));
+        view = player.camera.GetViewMatrix();
         projection = glm::perspective(glm::radians(player.camera.Zoom),
                                       (float)SCR_WIDTH / (float)SCR_HEIGHT,
                                       0.1f, 100.0f);
 
         // floor shader
         floorShader.use();
-        floorShader.setInt("texture1", texture1.ID); // or with shader class
-        floorShader.setInt("texture2", texture2.ID); // or with shader class
+        floorShader.setInt("texture1",
+                           texture_grass.ID); // or with shader class
+        floorShader.setInt("texture2", texture2.ID);
         floorShader.setMat4("view", view);
         floorShader.setMat4("projection", projection);
         map.createFloor(floorShader);
@@ -295,6 +297,12 @@ int main()
         lightingShader.setFloat("light.constant", 1.0f);
         lightingShader.setFloat("light.linear", 0.09f);
         lightingShader.setFloat("light.quadratic", 0.032f);
+
+        lightingShader.setVec3("light.position", player.camera.Position);
+        lightingShader.setVec3("light.direction", player.camera.Front);
+        lightingShader.setFloat("light.cutOff", glm::cos(glm::radians(12.5f)));
+        lightingShader.setFloat("light.outerCutOff",
+                                glm::cos(glm::radians(17.5f)));
 
         // lightingShader.setVec3("material.ambient", ambientColor);
         lightingShader.setFloat("material.shininess", 32.0f);
